@@ -102,7 +102,6 @@ def gaussian_map(x=5., observation_variance=4., prior_mean=0., prior_variance=1.
 # YOUR ANSWER HERE
 
 # P3 Q2: Describe the Gaussian generator and observed correlation.
-# YOUR ANSWER HERE
 # The gaussian seems pretty uniform, points seem tightly coupled.
 # I would say high correlation.
 def generate_data(n_samples=500, seed=0, mean=None, covariance=None):
@@ -115,8 +114,9 @@ def generate_data(n_samples=500, seed=0, mean=None, covariance=None):
         mean = [2., -1.]
     if covariance is None:
         covariance = [[3., 1.2], [1.2, 1.]]
-    rng = np.random.default_rng(seed)
-    data = rng.multivariate_normal(mean=mean, cov=covariance, size=n_samples)
+    
+    set_seed = np.random.default_rng(seed)
+    data = set_seed.multivariate_normal(mean=mean, cov=covariance, size=n_samples)
     return data
 
 # P3 Q3: Link centering/covariance/eigendecomposition to the derivation and explain the plot.
@@ -135,11 +135,16 @@ def pca(X):
     centered = X - mean
     # divisor to adjust the covariance
     divisor = X.shape[0] - 1
-    cov = (centered.T.dot(centered)) / divisor # (centered.T * centered) transpose flipped from equation
-    eigenvalues, eigenvectors = np.linalg.eigh(cov)
-    eigenvalues = eigenvalues[::-1]
+    cov = (centered.T.dot(centered)) / divisor # (centered.T * centered) transpose flipped from equation on slides
+    # output matrix: 2 x 2, not 500 x 500. We go along the feature dimension 
 
-    # Flip the columns, leave the rows intact
+    # simple oneliner for eigenvectors and eigenvalues. eigh is for symmetric matrices
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)
+    # IMPORTANT: eigh returns in ascending order, here we reverse
+    eigenvalues = eigenvalues[::-1]
+    # Flip the columns, leave the rows intact.
+    # Function returns eigenvectors along columns. 
+    # Typical math convention (did not know that or had forgotten it)
     eigenvectors = eigenvectors[:, ::-1]
     # PCA scores, with the corrected ordering (np.linalg.eigh sorts in ascending order)
     scores = centered.dot(eigenvectors)
@@ -161,12 +166,13 @@ def explained_variance(eigenvalues):
     return eigenvalues / total_variance
 
 # P3 Q2/Q3/Q4: Provide labeled figures and discuss their meaning.
-# Our eigenvalues are sorted in ascending order. PC1 is the dominant feature,
-# contributing to 88.5 percent of the total variance. This implies that 
-# the data is highly correlated, and can be modeled well with a single feature.
+# PC1 is the dominant component, contributing to 89.4 percent of the total variance. This implies that 
+# the data is highly correlated, and can be modeled well with a single component.
+# We would sacrifice 10.6 percent of the variance. In the limit, with a ton of data,
+# and a constrained amount of compute, many people at banks probably make this tradeoff.
 # The significance of dimensionality reduction is it allows us to see that the data
-# is most correlated along a single feature, and that the other eigenvector, the other
-# "true" direction in the space, is not very relevant here.
+# is mostly correlated along a single component, and that the other eigenvector, the other
+# "true" direction in the space, is less important here.
 def make_plots(X, result):
     """Return a Matplotlib Figure (or sequence of Figures), without show/save.
 
@@ -207,7 +213,7 @@ def make_plots(X, result):
 
 
 # REFLECTION: contributions, tasks completed, and external resources used.
-# Internet, and claude for final polish. Claude caught column reversal.
+# Internet, and claude for final correction. Claude caught column reversal.
 # Good review from previous classes, had to use some youtube on PCA.
 
 if __name__ == '__main__':
@@ -218,6 +224,13 @@ if __name__ == '__main__':
     data = generate_data()
     pca_out = pca(data)
     fig = make_plots(data, pca_out)
-    fig.savefig('pca.png', dpi=150)
+
     plt.show()
 
+
+
+    data2 = generate_data(mean=[-132, 32], covariance=[[1, -10], [-1, 1]])
+    pca_out = pca(data2)
+    fig = make_plots(data2, pca_out)
+
+    plt.show()
