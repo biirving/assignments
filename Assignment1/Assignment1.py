@@ -103,18 +103,23 @@ def gaussian_map(x=5., observation_variance=4., prior_mean=0., prior_variance=1.
 
 # P3 Q2: Describe the Gaussian generator and observed correlation.
 # YOUR ANSWER HERE
+# The gaussian seems pretty uniform, points seem tightly coupled.
+# I would say high correlation.
 def generate_data(n_samples=500, seed=0, mean=None, covariance=None):
     """Return reproducible Gaussian samples (n_samples,2) using NumPy and seed.
 
     Defaults: mean=[2,-1], covariance=[[3,1.2],[1.2,1]]. Custom mean has shape
     (2,), covariance (2,2) is positive definite. Do not mutate input arrays.
     """
-    # YOUR CODE HERE
-    raise NotImplementedError()
-
+    if mean is None:
+        mean = [2., -1.]
+    if covariance is None:
+        covariance = [[3., 1.2], [1.2, 1.]]
+    rng = np.random.default_rng(seed)
+    data = rng.multivariate_normal(mean=mean, cov=covariance, size=n_samples)
+    return data
 
 # P3 Q3: Link centering/covariance/eigendecomposition to the derivation and explain the plot.
-# YOUR ANSWER HERE
 def pca(X):
     """Fit NumPy PCA without mutating finite X of shape (n,2), n>=2.
 
@@ -124,20 +129,44 @@ def pca(X):
     Signs/tied-eigenspace bases are free. Include rank-deficient and tied cases.
     NumPy eigh/SVD are allowed; fitted library PCA is not.
     """
-    # YOUR CODE HERE
-    raise NotImplementedError()
+    # numpy PCA
+    mean = np.mean(X, axis=0)
+    # x - uT, from our expected value expression
+    centered = X - mean
+    # divisor to adjust the covariance
+    divisor = X.shape[0] - 1
+    cov = (centered.T.dot(centered)) / divisor # (centered.T * centered) transpose flipped from equation
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)
+    eigenvalues = eigenvalues[::-1]
+
+    # Flip the columns, leave the rows intact
+    eigenvectors = eigenvectors[:, ::-1]
+    # PCA scores, with the corrected ordering (np.linalg.eigh sorts in ascending order)
+    scores = centered.dot(eigenvectors)
+
+    pca_return = {}
+    pca_return['mean'] = mean
+    pca_return['centered'] = centered
+    pca_return['covariance'] = cov 
+    pca_return['eigenvalues'] = eigenvalues
+    pca_return['components'] = eigenvectors
+    pca_return['scores'] = scores
+
+    return pca_return
 
 
-# P3 Q4: Interpret the variance fractions and dimensionality reduction tradeoff.
-# YOUR ANSWER HERE
 def explained_variance(eigenvalues):
     """Return same-shape fractions for nonnegative eigenvalues with positive sum."""
-    # YOUR CODE HERE
-    raise NotImplementedError()
-
+    total_variance = np.sum(eigenvalues)
+    return eigenvalues / total_variance
 
 # P3 Q2/Q3/Q4: Provide labeled figures and discuss their meaning.
-# YOUR ANSWER HERE
+# Our eigenvalues are sorted in ascending order. PC1 is the dominant feature,
+# contributing to 88.5 percent of the total variance. This implies that 
+# the data is highly correlated, and can be modeled well with a single feature.
+# The significance of dimensionality reduction is it allows us to see that the data
+# is most correlated along a single feature, and that the other eigenvector, the other
+# "true" direction in the space, is not very relevant here.
 def make_plots(X, result):
     """Return a Matplotlib Figure (or sequence of Figures), without show/save.
 
@@ -145,13 +174,50 @@ def make_plots(X, result):
     variance fractions. Label axes. Plot quality is manually reviewed.
     """
     # YOUR CODE HERE
-    raise NotImplementedError()
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
+    axes[0].plot(X[:, 0], X[:, 1], '.', color="red", alpha=0.5)
+    axes[0].axis('equal')
+    axes[0].set_title('Data')
+    mean = result['mean']
+    comps = result['components']
+    ratios = explained_variance(result['eigenvalues'])
+    s = 2 * np.sqrt(result['eigenvalues'])   
+
+    axes[0].quiver(mean[0], mean[1],         
+                s[0] * comps[0, 0], s[0] * comps[1, 0],  
+                angles='xy', scale_units='xy', scale=1,
+                color='blue', label=f"PC1 ({ratios[0]*100:.1f}%)")
+    axes[0].quiver(mean[0], mean[1],         
+                s[1] * comps[0, 1], s[1] * comps[1, 1],  
+                angles='xy', scale_units='xy', scale=1,
+                color='green', label=f"PC2 ({ratios[1]*100:.1f}%)")
+    axes[0].set_xlabel('x1')
+    axes[0].set_ylabel('x2')
+    axes[0].legend()
+    axes[0].grid()
+
+    axes[1].bar(['PC1', 'PC2'], ratios)
+    axes[1].set_xlabel('Principal component')
+    axes[1].set_ylabel('Fraction of total variance')
+    axes[1].set_title('Explained variance')
+
+    fig.tight_layout()
+    return fig
 
 
 # REFLECTION: contributions, tasks completed, and external resources used.
-# YOUR ANSWER HERE
+# Internet, and claude for final polish. Claude caught column reversal.
+# Good review from previous classes, had to use some youtube on PCA.
 
 if __name__ == '__main__':
     # YOUR CODE HERE: call your functions and save/display the requested figures.
     # This block does not run when the grader imports your functions.
-    pass
+
+    import matplotlib.pyplot as plt
+    data = generate_data()
+    pca_out = pca(data)
+    fig = make_plots(data, pca_out)
+    fig.savefig('pca.png', dpi=150)
+    plt.show()
+
